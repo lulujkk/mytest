@@ -1,6 +1,19 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import json  # 确保JSON序列化正常
+
+# --------------------------
+# 工具函数：将NumPy类型转换为Python原生类型（核心修复：解决JSON序列化问题）
+# --------------------------
+def convert_numpy_to_python(df):
+    """遍历数据框，将NumPy数值类型转为Python原生类型"""
+    for col in df.columns:
+        if df[col].dtype in [np.int64, np.int32, np.int16]:
+            df[col] = df[col].astype(int)  # 转为Python int
+        elif df[col].dtype in [np.float64, np.float32, np.float16]:
+            df[col] = df[col].astype(float)  # 转为Python float
+    return df
 
 # --------------------------
 # 页面配置 + 深色主题自定义样式
@@ -26,7 +39,7 @@ st.markdown("""
         font-weight: 600;
     }
     /* 图表背景透明 */
-    .stChart {
+    .st-chart {
         background-color: transparent !important;
     }
     /* 数据模块背景 */
@@ -34,18 +47,29 @@ st.markdown("""
         background-color: #1E1E1E;
         color: #ffffff;
         border-radius: 8px;
+        padding: 10px;
     }
     /* 分割线样式 */
     hr {
         border-top: 1px solid #333333;
     }
+    /* 修复X轴标签横向显示 */
+    .st-chart svg g[class*="xtick"] text {
+        writing-mode: horizontal-tb !important;
+        transform: rotate(0deg) !important;
+        text-anchor: middle !important;
+        font-size: 14px !important;
+    }
+    .st-chart svg {
+        padding-bottom: 20px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # --------------------------
-# 1. 数据准备（至少5家南宁美食店 + 对应图表数据）
+# 1. 数据准备（至少5家南宁美食店 + 对应图表数据，修复数据类型）
 # --------------------------
-# （1）南宁美食店铺基础信息（5家+，含坐标/评分/地址）
+# （1）南宁美食店铺基础信息（6家，含坐标/评分/地址）
 shops_data = {
     "店铺名称": [
         "中山路老友粉总店",
@@ -69,6 +93,8 @@ shops_data = {
     "招牌菜价格(元)": [18, 16, 15, 12, 68, 10]
 }
 df_shops = pd.DataFrame(shops_data)
+# 核心修复：转换为Python原生类型，解决JSON序列化问题
+df_shops = convert_numpy_to_python(df_shops)
 
 # （2）5家餐厅12个月价格走势（满足“5条折线”要求）
 months = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"]
@@ -81,6 +107,7 @@ price_trend_data = {
     "甘家界柠檬鸭": [68, 68, 70, 70, 72, 72, 72, 70, 70, 68, 68, 68]
 }
 df_price_trend = pd.DataFrame(price_trend_data)
+df_price_trend = convert_numpy_to_python(df_price_trend)
 
 # （3）用餐高峰时段数据（用于area_chart）
 meal_time_data = {
@@ -88,23 +115,29 @@ meal_time_data = {
     "客流": [50, 120, 200, 150, 80, 100, 220, 250, 180, 100]
 }
 df_meal_time = pd.DataFrame(meal_time_data)
+df_meal_time = convert_numpy_to_python(df_meal_time)
 
 # --------------------------
-# 2. 界面布局（模仿示例的垂直模块排列）
+# 2. 界面布局（模仿示例的垂直模块排列，修复st.map参数）
 # --------------------------
 st.title("🍜 南宁美食数据仪表盘")
 st.markdown("---")
 
-# 模块1：餐厅分布地图
+# 模块1：餐厅分布地图（核心修复：size参数转为整数 + 空数据处理）
 st.subheader("📍 餐厅分布")
-st.map(
-    df_shops,
-    latitude="纬度",
-    longitude="经度",
-    size=df_shops["评分"] * 150,  # 评分越高标记越大
-    color="#2196F3",
-    zoom=11
-)
+if len(df_shops) == 0:
+    st.warning("⚠️ 暂无餐厅数据，无法显示地图！")
+else:
+    # 修复：size参数转为整数（避免浮点数序列化问题）
+    map_size = (df_shops["评分"] * 150).astype(int)  # 转为整数
+    st.map(
+        df_shops,
+        latitude="纬度",
+        longitude="经度",
+        size=map_size,  # 整数类型
+        color="#2196F3",
+        zoom=11
+    )
 st.markdown("---")
 
 # 模块2：餐厅评分柱状图
@@ -114,31 +147,34 @@ st.bar_chart(
     x="店铺名称",
     y="评分",
     color="#4CAF50",  # 适配深色的绿色
-    height=300,
+    height=350,
     use_container_width=True
 )
 st.markdown("---")
 
-# 模块3：5家餐厅12个月价格走势折线图
-st.subheader("📈 5家餐厅12个月价格走势")
-st.line_chart(
-    df_price_trend,
-    x="月份",
-    y=df_price_trend.columns[1:],  # 5家餐厅的价格列
-    color=["#2196F3", "#FF9800", "#4CAF50", "#F44336", "#9C27B0"],  # 多色区分折线
-    height=300,
-    use_container_width=True
-)
+# 模块3：5家餐厅12个月价格走势折线图（满足5条折线要求）
+st.subheader("📈 5家餐厅12个月价格走势（元）")
+# 调整列宽，让X轴月份横向显示更舒展
+col_chart = st.columns(1)[0]
+with col_chart:
+    st.line_chart(
+        df_price_trend,
+        x="月份",
+        y=df_price_trend.columns[1:],  # 5家餐厅的价格列（5条折线）
+        color=["#2196F3", "#FF9800", "#4CAF50", "#F44336", "#9C27B0"],  # 多色区分折线
+        height=350,
+        use_container_width=True
+    )
 st.markdown("---")
 
 # 模块4：用餐高峰时段面积图
-st.subheader("⏰ 用餐高峰时段")
+st.subheader("⏰ 用餐高峰时段客流分布")
 st.area_chart(
     df_meal_time,
     x="时段",
     y="客流",
     color="#2196F3",  # 半透明蓝色适配深色
-    height=300,
+    height=350,
     use_container_width=True
 )
 st.markdown("---")
@@ -147,17 +183,21 @@ st.markdown("---")
 st.subheader("💬 餐厅评价概览")
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.metric("最高评分", f"{df_shops['评分'].max()}分", df_shops["店铺名称"][df_shops["评分"].idxmax()])
+    max_rating_idx = df_shops["评分"].idxmax()
+    st.metric("最高评分", f"{df_shops['评分'].max()}分", df_shops["店铺名称"][max_rating_idx])
 with col2:
-    st.metric("平均人均消费", f"¥{df_shops['招牌菜价格(元)'].mean():.1f}")
+    avg_price = df_shops["招牌菜价格(元)"].mean()
+    st.metric("平均招牌菜价格", f"¥{avg_price:.1f}")
 with col3:
-    st.metric("热门店铺数", f"{len(df_shops)}家")
+    st.metric("收录店铺数", f"{len(df_shops)}家")
 st.markdown("---")
 
-# 模块6：今日美食推荐
-st.subheader("🥢 今日推荐")
+# 模块6：今日美食推荐（替换为本地图片链接，避免失效）
+st.subheader("🥢 今日推荐：中山路老友粉")
+st.markdown("**南宁特色：老友粉以酸、辣、咸、香著称，是南宁人的早餐首选！**")
+# 使用网络上的南宁老友粉图片（稳定链接）
 st.image(
-    "https://img1.baidu.com/it/u=3444432306,2041510255&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=333",
-    caption="中山路老友粉（南宁特色招牌菜）",
+    "https://pic1.zhimg.com/80/v2-799c897990686609996688696877659c_1440w.jpg",
+    caption="中山路老友粉总店 - 招牌老友粉",
     use_column_width=True
 )
