@@ -1,213 +1,154 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-# ===================== 1. 页面核心配置（紧凑居中） =====================
+
+# --------------------------
+# 页面配置（自定义网址：替换为学生姓名全拼+3，如luziguang3）
+# --------------------------
 st.set_page_config(
-    page_title="星际学员数字档案",
-    layout="centered",
-    initial_sidebar_state="expanded",
-    page_icon="🚀"
+    page_title="南宁美食数据仪表盘",
+    page_icon="🍜",
+    layout="wide"
 )
-# ===================== 2. 科幻CSS（移除图片样式+紧凑布局） =====================
-st.markdown("""
-<style>
-/* 全局样式 */
-.stApp {
-    background: linear-gradient(135deg, #000000 0%, #0a1929 50%, #001220 100%);
-    color: #ffffff;
-    font-family: 'Courier New', monospace;
-    font-size: 12px !important;
+
+# --------------------------
+# 1. 数据准备
+# --------------------------
+# （1）店铺基础信息（6家店铺，满足5+要求）
+shops_data = {
+    "店铺名称": [
+        "老友粉中山路总店",
+        "复记老友粉七星路店",
+        "舒记老友粉桃源路店",
+        "南铁螺蛳粉总店",
+        "邕州老街粉饺王",
+        "甘家界牌柠檬鸭总店"
+    ],
+    "美食品类": ["老友粉", "老友粉", "老友粉", "螺蛳粉", "粉饺", "柠檬鸭"],
+    "评分": [4.8, 4.7, 4.9, 4.6, 4.5, 4.8],
+    "地址": [
+        "南宁市青秀区中山路66号",
+        "南宁市青秀区七星路89号",
+        "南宁市青秀区桃源路45号",
+        "南宁市西乡塘区南铁一街23号",
+        "南宁市江南区邕州老街12号",
+        "南宁市兴宁区邕武路18号"
+    ],
+    "纬度": [22.8167, 22.8215, 22.8190, 22.8450, 22.7890, 22.8670],
+    "经度": [108.3220, 108.3280, 108.3180, 108.3020, 108.3450, 108.3350],
+    "月均消费(元)": [18, 16, 20, 15, 12, 68]
 }
-/* 页面内边距压缩 */
-.block-container {
-    padding-top: 1rem !important;
-    padding-bottom: 1rem !important;
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
-    max-width: 900px !important;
+df_shops = pd.DataFrame(shops_data)
+
+# （2）12个月价格走势数据（6家店铺，满足5+折线要求）
+months = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"]
+price_trend_data = {
+    "月份": months,
+    "老友粉中山路总店": [18, 18, 18, 19, 19, 20, 20, 20, 19, 19, 18, 18],
+    "复记老友粉七星路店": [16, 16, 15, 15, 16, 16, 16, 15, 15, 16, 16, 15],
+    "舒记老友粉桃源路店": [20, 20, 21, 21, 22, 22, 22, 21, 21, 20, 20, 20],
+    "南铁螺蛳粉总店": [15, 15, 14, 14, 15, 15, 15, 14, 14, 15, 15, 14],
+    "邕州老街粉饺王": [12, 12, 12, 11, 11, 12, 12, 11, 11, 12, 12, 12],
+    "甘家界牌柠檬鸭总店": [68, 68, 70, 70, 72, 72, 72, 70, 70, 68, 68, 68]
 }
-/* 标题样式（精简） */
-h1 {
-    color: #00ffff;
-    text-shadow: 0 0 5px #00ffff;
-    font-size: 20px !important;
-    margin-bottom: 0.5rem !important;
+df_price_trend = pd.DataFrame(price_trend_data)
+
+# （3）美食品类销量数据
+category_sales = {
+    "美食品类": ["老友粉", "螺蛳粉", "粉饺", "柠檬鸭", "卷筒粉", "生榨粉"],
+    "月销量(份)": [12000, 9500, 4500, 6800, 5200, 7800]
 }
-h2, h3 {
-    color: #00ff99;
-    text-shadow: 0 0 3px #00ff99;
-    border-bottom: 1px solid rgba(0,255,153,0.3);
-    padding-bottom: 4px !important;
-    margin-bottom: 0.5rem !important;
-    font-size: 16px !important;
+df_category_sales = pd.DataFrame(category_sales)
+
+# （4）用户评价分布数据（按月份）
+review_data = {
+    "月份": months,
+    "好评数": [850, 880, 920, 950, 980, 1020, 1050, 1080, 1100, 1050, 1000, 950],
+    "中评数": [120, 110, 100, 90, 80, 70, 60, 70, 80, 90, 100, 110],
+    "差评数": [30, 25, 20, 15, 10, 5, 5, 10, 15, 20, 25, 30]
 }
-/* 科幻卡片模块 */
-.sci-fi-card {
-    background: rgba(10, 25, 41, 0.8);
-    border: 1px solid #00ffff;
-    border-radius: 8px;
-    padding: 10px !important;
-    margin-bottom: 10px !important;
-    box-shadow: 0 0 8px rgba(0,255,255,0.2);
-}
-/* Metric组件（紧凑） */
-.stMetric {
-    background: rgba(10, 25, 41, 0.9);
-    border: 1px solid #00ffff;
-    border-radius: 6px;
-    padding: 8px !important;
-    box-shadow: 0 0 5px rgba(0,255,255,0.3);
-    text-align: center;
-    margin-bottom: 5px !important;
-}
-.stMetric label {color: #00ff99 !important; font-size: 12px !important;}
-.stMetric value {font-size: 18px !important; font-weight: bold;}
-.stMetric delta {color: #ffff00 !important; font-size: 10px !important;}
-/* 状态文字样式 */
-.status-normal { color: #00ff99; font-size: 12px !important; }
-.status-warning { color: #ffcc00; font-size: 12px !important; }
-.status-error { color: #ff4d4d; font-size: 12px !important; }
-.status-info { color: #00ffff; font-size: 12px !important; }
-/* 表格/代码块紧凑 */
-.stDataFrame {font-size: 11px !important;}
-.stCode {font-size: 11px !important; padding: 8px !important;}
-</style>
-""", unsafe_allow_html=True)
-# ===================== 3. 侧边栏（无图片+精简信息） =====================
-with st.sidebar:
-    # 替换图片为科幻文字标识
-    st.markdown("<div style='text-align:center; padding:10px; border:2px solid #00ff99; border-radius:8px; margin-bottom:10px;'>", unsafe_allow_html=True)
-    st.markdown("<h3 style='margin:0;'>🆔 学员标识</h3>", unsafe_allow_html=True)
-    st.markdown("<p class='status-normal'>NTD-2023-001</p>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-    
-    # 核心档案信息
-    st.markdown("### 📋 核心档案")
-    st.markdown(f"""
-    - **等级**：<span class='status-normal'>星际开发者 Lv.8</span>
-    - **权限**：<span class='status-warning'>β测试权限</span>
-    - **注册时间**：2023-09-01
-    - **最后同步**：{pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}
-    - **加密状态**：<span class='status-info'>已加密 🔒</span>
-    """, unsafe_allow_html=True)
-    st.divider()
-    st.markdown("<center><span class='status-info'>⚠️ 仅限授权访问</span></center>", unsafe_allow_html=True)
-# ===================== 4. 顶部标题区（无Banner） =====================
-st.markdown("<div class='sci-fi-card'>", unsafe_allow_html=True)
-st.title("🚀 星际学员 - 小陆 数字档案仪表盘")
-st.markdown("<p class='status-info' style='font-size:12px;margin:0;'>【档案类型：技术能力评估 | 版本：v2.1】</p>", unsafe_allow_html=True)
-st.markdown("</div>", unsafe_allow_html=True)
-# ===================== 5. 主体内容（无图片+紧凑布局） =====================
-col1, col2 = st.columns([1.5, 2.5])
-# 左侧：基础状态
+df_review = pd.DataFrame(review_data)
+
+# --------------------------
+# 2. 页面标题与侧边栏
+# --------------------------
+st.title("🍜 南宁美食数据仪表盘")
+st.markdown("---")
+
+# 侧边栏筛选
+st.sidebar.header("筛选条件")
+selected_category = st.sidebar.multiselect(
+    "选择美食品类",
+    options=df_shops["美食品类"].unique(),
+    default=df_shops["美食品类"].unique()
+)
+
+# 根据品类筛选店铺数据
+df_shops_filtered = df_shops[df_shops["美食品类"].isin(selected_category)]
+
+# --------------------------
+# 3. 主页面内容布局
+# --------------------------
+# 第一行：店铺信息展示 + 价格走势折线图
+col1, col2 = st.columns([1, 2])
+
 with col1:
-    st.markdown("<div class='sci-fi-card'>", unsafe_allow_html=True)
-    st.subheader("📊 基础状态监测")
-    
-    # 基础状态表格
-    basic_data = pd.DataFrame({
-        "监测维度": ["生理状态", "精神阈值", "能量储备", "网络连接", "任务负载"],
-        "当前状态": [
-            "<span class='status-normal'>稳定 ✔️</span>",
-            "<span class='status-normal'>92% 🟢</span>",
-            "<span class='status-warning'>85% 🟡</span>",
-            "<span class='status-normal'>加密连接 ✔️</span>",
-            "<span class='status-error'>78% 🔴</span>"
-        ]
-    })
-    st.write(basic_data.to_html(escape=False, index=False), unsafe_allow_html=True)
-    
-    # 状态说明（替换原监测图谱位置）
-    st.markdown("### 📝 状态说明")
-    st.markdown("""
-    - 生理状态：各项指标在安全阈值内
-    - 能量储备：中等，建议4小时后补充
-    - 任务负载：高负载，建议优先完成紧急任务
-    """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-# 右侧：技能矩阵
+    st.subheader("南宁热门美食店铺信息")
+    st.dataframe(
+        df_shops_filtered[["店铺名称", "美食品类", "评分", "地址", "月均消费(元)"]],
+        use_container_width=True,
+        hide_index=True
+    )
+
 with col2:
-    st.markdown("<div class='sci-fi-card'>", unsafe_allow_html=True)
-    st.subheader("🛠️ 编程技能矩阵")
-    
-    # 核心技能Metric
-    skill_col1, skill_col2, skill_col3 = st.columns(3)
-    with skill_col1: st.metric(label="Python", value="95%", delta="+5% (本月)")
-    with skill_col2: st.metric(label="C++", value="87%", delta="-2% (本月)")
-    with skill_col3: st.metric(label="Java", value="68%", delta="+10% (本月)")
-    
-    # 技能趋势说明（替换原趋势图谱位置）
-    st.markdown("### 📈 技能成长趋势")
-    st.markdown("""
-    - Python：持续提升，已达精通级别
-    - C++：小幅回落，需加强实战训练
-    - Java：快速提升，本月进步显著
-    - 前端开发：75%（稳定提升）
-    - 数据可视化：90%（核心优势技能）
-    """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-# ===================== 6. 任务日志 + 核心代码 =====================
+    st.subheader("6家餐厅12个月价格走势")
+    st.line_chart(
+        df_price_trend,
+        x="月份",
+        y=df_price_trend.columns[1:],  # 所有店铺的价格列
+        use_container_width=True,
+        color=["#FF5733", "#33FF57", "#3357FF", "#FF33A6", "#A633FF", "#33FFF6"]
+    )
+
+st.markdown("---")
+
+# 第二行：品类销量柱状图 + 用户评价面积图
 col3, col4 = st.columns(2)
-# 左侧：任务日志
+
 with col3:
-    st.markdown("<div class='sci-fi-card'>", unsafe_allow_html=True)
-    st.subheader("📜 任务执行日志")
-    
-    # 任务数据
-    task_data = pd.DataFrame({
-        "任务ID": ["T-1234", "T-5678", "T-9012"],
-        "任务名称": ["学生信息管理系统", "课程数据可视化", "AI错题分析工具"],
-        "进度": [
-            "<span class='status-normal'>85%</span>",
-            "<span class='status-normal'>100%</span>",
-            "<span class='status-warning'>60%</span>"
-        ],
-        "优先级": ["高", "中", "紧急"]
-    })
-    st.write(task_data.to_html(escape=False, index=False), unsafe_allow_html=True)
-    
-    # 进度汇总
-    st.markdown("### 📊 进度汇总")
-    total_tasks = len(task_data)
-    completed = len(task_data[task_data["进度"].str.contains("100%")])
-    st.progress(completed / total_tasks)
-    st.markdown(f"""
-    - 总任务数：{total_tasks} | 已完成：<span class='status-normal'>{completed}</span>
-    - 紧急任务：1项（AI错题分析工具）需优先处理
-    """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-# 右侧：核心代码
+    st.subheader("南宁美食品类月销量")
+    st.bar_chart(
+        df_category_sales,
+        x="美食品类",
+        y="月销量(份)",
+        use_container_width=True,
+        color="#FF5733"
+    )
+
 with col4:
-    st.markdown("<div class='sci-fi-card'>", unsafe_allow_html=True)
-    st.subheader("💻 核心任务执行代码")
-    
-    # 核心代码
-    core_code = '''def star_task_executor(task_id: str, priority: str) -> bool:
-    """星际任务执行核心函数"""
-    # 加载任务配置
-    config = load_task_config(task_id)
-    # 紧急任务资源超频
-    if priority == "紧急":
-        allocate_high_resources()
-        st.warning(f"[紧急任务] {task_id} 资源已超频")
-    # 执行任务并返回结果
-    try:
-        result = execute_task(config)
-        st.success(f"[任务完成] {task_id} 执行成功")
-        return True
-    except Exception as e:
-        st.error(f"[任务异常] {task_id} 错误：{e}")
-        return False
-'''
-    st.code(core_code, language="python", line_numbers=True)
-    
-    # 代码说明
-    st.markdown("<center><i class='status-info'>核心引擎：v2.1 | 最后更新：2025-12-18</i></center>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-# ===================== 页脚（精简） =====================
-st.markdown("""
-<div style='text-align:center; color:#00ffff; font-size:10px; margin-top:10px; padding:5px; border-top:1px solid #00ff99;'>
-    <p>星际学员档案系统 v2.1 | 数据加密级别：最高 | 系统状态：在线 ✔️</p>
-    <p>© 2025 星际开发学院 - 未经授权禁止复制/传播</p>
-</div>
-""", unsafe_allow_html=True)
+    st.subheader("用户评价分布（按月份）")
+    st.area_chart(
+        df_review,
+        x="月份",
+        y=["好评数", "中评数", "差评数"],
+        use_container_width=True,
+        color=["#33FF57", "#FFD700", "#FF3333"]
+    )
+
+st.markdown("---")
+
+# 第三行：店铺位置地图
+st.subheader("南宁美食店铺位置分布")
+st.map(
+    df_shops_filtered,
+    latitude="纬度",
+    longitude="经度",
+    size=200,  # 标记大小
+    color="#FF5733"  # 标记颜色
+)
+
+# --------------------------
+# 4. 页脚信息
+# --------------------------
+st.markdown("---")
+st.markdown("### 数据说明：本仪表盘数据为南宁本地美食店铺模拟数据，仅供展示使用。")
