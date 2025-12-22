@@ -12,24 +12,28 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 自定义CSS（优化图表样式、文字排版）
+# 自定义CSS（优化样式：地址列换行、图表字体、hover效果）
 st.markdown("""
 <style>
     /* 全局字体 */
     body {font-family: "Microsoft YaHei", sans-serif;}
     /* 指标卡样式 */
-    .stMetric {background-color: #f0f8fb; border-radius: 8px; padding: 10px;}
+    .stMetric {background-color: #f0f8fb; border-radius: 8px; padding: 15px; margin-bottom: 10px;}
     /* 图表标题样式 */
-    h3 {color: #006688;}
-    /* 数据框样式 */
-    .stDataFrame {border: 1px solid #e6f7ff; border-radius: 8px;}
+    h3, h4 {color: #00566b; font-weight: 600;}
+    /* 数据框样式：地址列自动换行 */
+    .stDataFrame div[data-testid="stVerticalBlock"] {width: 100% !important;}
+    .stDataFrame table {width: 100% !important; table-layout: auto !important;}
+    .stDataFrame td {white-space: normal !important; word-wrap: break-word !important;}
+    /* 侧边栏样式 */
+    .stSidebar {background-color: #f9fcff;}
 </style>
 """, unsafe_allow_html=True)
 
 # --------------------------
-# 1. 数据准备（南宁KTV相关数据，6家店铺满足5+要求）
+# 1. 数据准备（优化：经纬度精度提升，地址更规范）
 # --------------------------
-# （1）KTV店铺基础信息（包含量贩式/商务式等类型，经纬度为南宁真实区域坐标）
+# （1）KTV店铺基础信息（6家店铺，经纬度精确到6位小数，地址规范）
 ktv_shops_data = {
     "店铺名称": [
         "纯K(南宁万象城店)",
@@ -42,41 +46,42 @@ ktv_shops_data = {
     "KTV类型": ["量贩式", "量贩式", "量贩式", "量贩式", "商务式", "商务式"],
     "评分": [4.9, 4.8, 4.7, 4.6, 4.5, 4.4],
     "地址": [
-        "南宁市青秀区民族大道136号万象城",
-        "南宁市青秀区民族大道131号航洋城",
-        "南宁市兴宁区朝阳路38号南宁百货大楼",
-        "南宁市青秀区万达广场1号门4楼",
-        "南宁市西乡塘区大学东路98号世贸西城",
-        "南宁市江南区星光大道46号南宁江南万达广场"
+        "南宁市青秀区民族大道136号华润万象城4层439号",
+        "南宁市青秀区民族大道131号航洋国际城购物中心3层",
+        "南宁市兴宁区朝阳路38号南宁百货大楼北楼5层",
+        "南宁市青秀区东葛路118号万达广场1号门4楼",
+        "南宁市西乡塘区大学东路98号世贸西城广场3层",
+        "南宁市江南区星光大道46号江南万达广场10号楼3层"
     ],
-    "纬度": [22.8175, 22.8268, 22.8200, 22.8140, 22.8465, 22.7880],
-    "经度": [108.3460, 108.3520, 108.3220, 108.3420, 108.3050, 108.3480],
+    "纬度": [22.817532, 22.826815, 22.820046, 22.814023, 22.846512, 22.788035],
+    "经度": [108.346021, 108.352018, 108.322034, 108.342015, 108.305026, 108.348019],
     "小包厢小时消费(元)": [88, 78, 68, 75, 128, 118],
     "月均预订量(次)": [1200, 1050, 1100, 950, 800, 750]
 }
 df_shops = pd.DataFrame(ktv_shops_data)
 
-# （2）12个月小包厢价格走势数据（6家KTV，满足5+折线要求，价格随节假日微调）
+# （2）12个月小包厢价格走势数据（优化：价格波动更合理，标注节假日）
 months = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"]
 price_trend_data = {
     "月份": months,
-    "纯K(南宁万象城店)": [88, 98, 88, 88, 98, 88, 88, 98, 88, 98, 88, 98],  # 节假日涨价
-    "星聚会KTV(南宁航洋城店)": [78, 88, 78, 78, 88, 78, 78, 88, 78, 88, 78, 88],
-    "佰迪乐KTV(南宁朝阳店)": [68, 78, 68, 68, 78, 68, 68, 78, 68, 78, 68, 78],
-    "大歌星KTV(南宁万达店)": [75, 85, 75, 75, 85, 75, 75, 85, 75, 85, 75, 85],
-    "麦霸KTV(南宁西乡塘店)": [128, 138, 128, 128, 138, 128, 128, 138, 128, 138, 128, 138],
-    "盛世嘉年华KTV(南宁江南店)": [118, 128, 118, 118, 128, 118, 118, 128, 118, 128, 118, 128]
+    "纯K(万象城)": [88, 98, 88, 88, 98, 88, 88, 98, 88, 98, 88, 98],  # 简化店铺名，避免图例过长
+    "星聚会(航洋城)": [78, 88, 78, 78, 88, 78, 78, 88, 78, 88, 78, 88],
+    "佰迪乐(朝阳店)": [68, 78, 68, 68, 78, 68, 68, 78, 68, 78, 68, 78],
+    "大歌星(万达店)": [75, 85, 75, 75, 85, 75, 75, 85, 75, 85, 75, 85],
+    "麦霸(西乡塘)": [128, 138, 128, 128, 138, 128, 128, 138, 128, 138, 128, 138],
+    "嘉年华(江南店)": [118, 128, 118, 118, 128, 118, 118, 128, 118, 128, 118, 128]
 }
 df_price_trend = pd.DataFrame(price_trend_data)
 
-# （3）KTV类型月度预订量数据（优化：增加细分类型，按预订量降序排列）
+# （3）KTV类型月度预订量数据（优化：添加占比列，排序更清晰）
 category_booking = {
     "KTV类型": ["量贩式（高端）", "量贩式（中端）", "量贩式（平价）", "商务式（高端）", "商务式（中端）"],
-    "月预订量(次)": [12000, 9500, 7800, 6500, 4200]
+    "月预订量(次)": [12000, 9500, 7800, 6500, 4200],
+    "市场占比(%)": [28.6, 22.6, 18.6, 15.5, 10.0]  # 新增占比数据
 }
-df_category_booking = pd.DataFrame(category_booking).sort_values(by="月预订量(次)", ascending=False)  # 降序排列
+df_category_booking = pd.DataFrame(category_booking).sort_values(by="月预订量(次)", ascending=False)
 
-# （4）用户评价分布数据（优化：堆叠面积图，包含好评/中评/差评，数据更贴合实际）
+# （4）用户评价分布数据（优化：数据平滑，新增总评价数）
 review_data = {
     "月份": months,
     "好评数": [950, 1020, 980, 920, 1050, 1100, 1150, 1200, 1100, 1050, 980, 1020],
@@ -84,14 +89,19 @@ review_data = {
     "差评数": [20, 15, 25, 30, 18, 15, 12, 15, 18, 20, 25, 20]
 }
 df_review = pd.DataFrame(review_data)
+df_review["总评价数"] = df_review["好评数"] + df_review["中评数"] + df_review["差评数"]  # 新增总评价列
 
-# （5）关键指标计算（用于指标卡展示）
+# （5）关键指标计算（优化：新增平均预订量、价格涨幅）
 max_rating = df_shops["评分"].max()
+min_rating = df_shops["评分"].min()
 avg_consumption = round(df_shops["小包厢小时消费(元)"].mean(), 1)
 total_bookings = df_shops["月均预订量(次)"].sum()
+avg_bookings = round(df_shops["月均预订量(次)"].mean(), 0)
+# 价格涨幅（最高价格/最低价格-1）
+price_increase = round((df_shops["小包厢小时消费(元)"].max() / df_shops["小包厢小时消费(元)"].min() - 1) * 100, 1)
 
 # --------------------------
-# 2. 侧边栏筛选（优化：增加评分区间、消费区间筛选）
+# 2. 侧边栏筛选（优化：添加筛选结果提示，默认值更合理）
 # --------------------------
 st.sidebar.header("🎛️ 筛选条件")
 
@@ -99,7 +109,8 @@ st.sidebar.header("🎛️ 筛选条件")
 selected_type = st.sidebar.multiselect(
     "选择KTV类型",
     options=df_shops["KTV类型"].unique(),
-    default=df_shops["KTV类型"].unique()
+    default=df_shops["KTV类型"].unique(),
+    help="可多选，默认选中所有类型"
 )
 
 # 评分区间筛选
@@ -107,17 +118,21 @@ rating_range = st.sidebar.slider(
     "选择评分区间",
     min_value=4.0,
     max_value=5.0,
-    value=(4.0, 5.0),
-    step=0.1
+    value=(min_rating, max_rating),  # 默认选中实际评分范围
+    step=0.1,
+    help=f"当前店铺评分范围：{min_rating} - {max_rating}"
 )
 
 # 消费区间筛选
+min_price = df_shops["小包厢小时消费(元)"].min()
+max_price = df_shops["小包厢小时消费(元)"].max()
 price_range = st.sidebar.slider(
     "选择小包厢小时消费区间(元)",
-    min_value=int(df_shops["小包厢小时消费(元)"].min()),
-    max_value=int(df_shops["小包厢小时消费(元)"].max()),
-    value=(int(df_shops["小包厢小时消费(元)"].min()), int(df_shops["小包厢小时消费(元)"].max())),
-    step=5
+    min_value=int(min_price),
+    max_value=int(max_price),
+    value=(int(min_price), int(max_price)),  # 默认选中实际价格范围
+    step=5,
+    help=f"当前价格范围：{min_price} - {max_price} 元"
 )
 
 # 多条件筛选数据
@@ -129,94 +144,146 @@ df_shops_filtered = df_shops[
     (df_shops["小包厢小时消费(元)"] <= price_range[1])
 ]
 
+# 筛选结果提示
+st.sidebar.markdown(f"### 📊 筛选结果：{len(df_shops_filtered)} 家店铺")
+st.sidebar.markdown(f"- 类型：{', '.join(selected_type)}")
+st.sidebar.markdown(f"- 评分：{rating_range[0]} - {rating_range[1]}")
+st.sidebar.markdown(f"- 消费：{price_range[0]} - {price_range[1]} 元")
+
 # --------------------------
-# 3. 主页面内容布局（优化：新增指标卡，分块更清晰）
+# 3. 主页面内容布局（核心优化：地址显示+图表细节）
 # --------------------------
 st.title("🎤 南宁KTV数据仪表盘")
 st.markdown("---")
 
-# 第一行：关键指标卡（新增，提升数据概览性）
-col1, col2, col3 = st.columns(3)
+# 第一行：关键指标卡（优化：新增2个指标，delta提示更直观）
+col1, col2, col3, col4 = st.columns(4)
 with col1:
-    st.metric(label="🏆 最高店铺评分", value=max_rating, delta=f"{max_rating - df_shops['评分'].min():.1f} 分（领先最低分）")
+    st.metric(
+        label="🏆 最高店铺评分",
+        value=f"{max_rating} 分",
+        delta=f"{max_rating - min_rating:.1f} 分（领先最低分）"
+    )
 with col2:
-    st.metric(label="💰 平均小时消费", value=f"{avg_consumption} 元", delta=f"{avg_consumption - df_shops['小包厢小时消费(元)'].min():.1f} 元（高于最低消费）")
+    st.metric(
+        label="💰 平均小时消费",
+        value=f"{avg_consumption} 元",
+        delta=f"{price_increase}%（价格涨幅）"
+    )
 with col3:
-    st.metric(label="📅 总月预订量", value=f"{total_bookings} 次", delta=f"{total_bookings - df_shops['月均预订量(次)'].min()} 次（高于最低预订量）")
+    st.metric(
+        label="📅 总月预订量",
+        value=f"{total_bookings} 次",
+        delta=f"{total_bookings - avg_bookings:.0f} 次（高于平均值）"
+    )
+with col4:
+    st.metric(
+        label="📈 平均月预订量",
+        value=f"{avg_bookings} 次",
+        delta=f"{avg_bookings - df_shops['月均预订量(次)'].min():.0f} 次（高于最低值）"
+    )
 
 st.markdown("---")
 
-# 第二行：店铺信息展示 + 12个月价格走势折线图（优化：折线图颜色主题，交互增强）
+# 第二行：店铺信息（地址完整显示） + 价格走势折线图（优化：图例+坐标轴标签）
 col1, col2 = st.columns([1, 2])
 
 with col1:
     st.subheader("南宁热门KTV店铺信息")
+    # 核心优化：使用column_config自定义列宽，让地址完整显示
     st.dataframe(
         df_shops_filtered[["店铺名称", "KTV类型", "评分", "地址", "小包厢小时消费(元)", "月均预订量(次)"]],
         use_container_width=True,
-        hide_index=True
+        hide_index=True,
+        column_config={
+            "店铺名称": st.column_config.TextColumn("店铺名称", width="small"),
+            "KTV类型": st.column_config.TextColumn("类型", width="small"),
+            "评分": st.column_config.NumberColumn("评分", width="small", format="%.1f"),
+            "地址": st.column_config.TextColumn("详细地址", width="large"),  # 地址列设为大宽度
+            "小包厢小时消费(元)": st.column_config.NumberColumn("小时消费(元)", width="small"),
+            "月均预订量(次)": st.column_config.NumberColumn("月预订量", width="small")
+        }
     )
+    # 新增：店铺详情展开栏，展示完整信息
+    with st.expander("🔍 查看店铺详细信息（含地址导航）", expanded=False):
+        for idx, row in df_shops_filtered.iterrows():
+            st.markdown(f"**{row['店铺名称']}** ({row['KTV类型']})")
+            st.markdown(f"- 评分：{row['评分']} 分 | 消费：{row['小包厢小时消费(元)']} 元/小时 | 预订量：{row['月均预订量(次)']} 次/月")
+            st.markdown(f"- 详细地址：{row['地址']}")
+            st.markdown("---")
 
 with col2:
-    st.subheader("6家KTV小包厢12个月价格走势")
-    # 原生Streamlit折线图，配置自定义颜色和交互
+    st.subheader("6家KTV小包厢12个月价格走势（元/小时）")
+    # 优化：折线图添加y轴标签，调整颜色对比度，高度适配
     st.line_chart(
         df_price_trend,
         x="月份",
-        y=df_price_trend.columns[1:],  # 所有KTV的价格列
+        y=df_price_trend.columns[1:],
         use_container_width=True,
-        color=["#006688", "#0099cc", "#33cccc", "#66b3ff", "#9966cc", "#cc6699"],  # 青绿色系渐变
+        color=["#006688", "#0099cc", "#33cccc", "#66b3ff", "#9966cc", "#cc6699"],
         width=0,
         height=400
     )
+    # 新增：折线图说明（标注节假日涨价）
+    st.caption("📌 2月/5月/8月/10月为节假日，价格略有上涨")
 
 st.markdown("---")
 
-# 第三行：KTV类型预订量柱状图（优化：降序排列、渐变颜色） + 用户评价堆叠面积图（优化：堆叠模式）
+# 第三行：KTV类型预订量柱状图（优化：添加占比标注） + 用户评价面积图（优化：堆叠+总评价数）
 col3, col4 = st.columns(2)
 
 with col3:
     st.subheader("KTV类型月度预订量分布")
-    # 原生Streamlit柱状图，使用主色调增强视觉统一性
+    # 优化：柱状图添加占比说明，调整颜色饱和度
     st.bar_chart(
         df_category_booking,
         x="KTV类型",
         y="月预订量(次)",
         use_container_width=True,
-        color="#006688",  # 主色调
+        color="#006688",
         width=0,
         height=400
     )
+    # 新增：显示市场占比
+    st.caption("📊 量贩式高端KTV占比最高（28.6%），商务式中端占比最低（10.0%）")
 
 with col4:
     st.subheader("用户评价分布（按月份）")
-    # 原生Streamlit面积图，堆叠模式+自定义颜色
+    # 优化：面积图保留堆叠，新增总评价数参考，调整颜色对比度
     st.area_chart(
         df_review,
         x="月份",
-        y=["好评数", "中评数", "差评数"],
+        y=["好评数", "中评数", "差评数"],  # 可添加"总评价数"查看整体趋势
         use_container_width=True,
-        color=["#009966", "#ffcc00", "#ff6666"],  # 好评绿、中评黄、差评红
-        stack=True,  # 堆叠模式
+        color=["#009966", "#ffcc00", "#ff6666"],  # 更鲜艳的配色，区分度更高
+        stack=True,
         width=0,
         height=400
     )
+    # 新增：评价说明
+    st.caption("✅ 7-8月好评数最高（1200条），差评数最低（12条）")
 
 st.markdown("---")
 
-# 第四行：KTV店铺位置地图（优化：标记大小随评分变化）
+# 第四行：KTV店铺位置地图（优化：经纬度精度，标记大小随预订量变化）
 st.subheader("南宁KTV店铺位置分布")
-# 原生Streamlit map：标记大小随评分变化，使用主色调
+# 优化：标记大小随预订量变化（更直观），颜色调整为更醒目的主色调
 st.map(
     df_shops_filtered,
     latitude="纬度",
     longitude="经度",
-    size=df_shops_filtered["评分"] * 100,  # 标记大小随评分变化
-    color="#006688"  # 主色调
+    size=df_shops_filtered["月均预订量(次)"] / 5,  # 按预订量缩放标记（避免过大）
+    color="#006688",
+    zoom=11  # 固定缩放级别，确保南宁市区完整显示
 )
+# 新增：地图说明
+st.caption("📍 标记大小代表月预订量（越大预订量越高），青秀区KTV数量最多")
 
 # --------------------------
-# 4. 页脚信息
+# 4. 页脚信息（优化：添加数据更新时间）
 # --------------------------
 st.markdown("---")
-st.markdown("### 📝 数据说明：本仪表盘数据为南宁KTV行业模拟数据，仅供展示使用。")
+st.markdown("### 📝 数据说明：")
+st.markdown("- 本仪表盘数据为南宁KTV行业模拟数据，仅供展示使用；")
+st.markdown("- 数据更新时间：2025年12月；")
+st.markdown("- 价格走势包含节假日调价因素，预订量为月度统计值。")
