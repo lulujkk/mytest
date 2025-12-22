@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px  # 引入Plotly增强图表交互（可选，保留原生Streamlit同时支持）
 
 # --------------------------
 # 页面配置（自定义网址：替换为学生姓名全拼+3，如luziguang3）
@@ -160,7 +159,7 @@ with col1:
 
 with col2:
     st.subheader("6家KTV小包厢12个月价格走势")
-    # 优化：使用原生Streamlit折线图，配置自定义颜色和交互
+    # 原生Streamlit折线图，配置自定义颜色和交互
     st.line_chart(
         df_price_trend,
         x="月份",
@@ -170,10 +169,6 @@ with col2:
         width=0,
         height=400
     )
-    # 可选：使用Plotly折线图（交互更强，如需可替换上方代码）
-    # fig = px.line(df_price_trend, x="月份", y=df_price_trend.columns[1:], title="6家KTV小包厢12个月价格走势")
-    # fig.update_layout(height=400, template="plotly_white")
-    # st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")
 
@@ -182,7 +177,7 @@ col3, col4 = st.columns(2)
 
 with col3:
     st.subheader("KTV类型月度预订量分布")
-    # 优化：柱状图使用自定义颜色，显示数值标签（原生Streamlit不支持标签，可选Plotly增强）
+    # 原生Streamlit柱状图，使用主色调增强视觉统一性
     st.bar_chart(
         df_category_booking,
         x="KTV类型",
@@ -192,15 +187,10 @@ with col3:
         width=0,
         height=400
     )
-    # 可选：Plotly柱状图（显示数值标签，交互更强）
-    # fig = px.bar(df_category_booking, x="KTV类型", y="月预订量(次)", text="月预订量(次)")
-    # fig.update_traces(marker_color="#006688", textposition="outside")
-    # fig.update_layout(height=400, template="plotly_white")
-    # st.plotly_chart(fig, use_container_width=True)
 
 with col4:
     st.subheader("用户评价分布（按月份）")
-    # 优化：面积图改为堆叠模式，配置自定义颜色
+    # 原生Streamlit面积图，堆叠模式+自定义颜色
     st.area_chart(
         df_review,
         x="月份",
@@ -214,10 +204,9 @@ with col4:
 
 st.markdown("---")
 
-# 第四行：KTV店铺位置地图（优化：标记大小随评分变化，颜色区分类型）
+# 第四行：KTV店铺位置地图（优化：标记大小随评分变化）
 st.subheader("南宁KTV店铺位置分布")
-# 为不同KTV类型设置不同颜色（用于地图标记，原生Streamlit map仅支持单一颜色，可注释后用Plotly地图替换）
-# 原生Streamlit map
+# 原生Streamlit map：标记大小随评分变化，使用主色调
 st.map(
     df_shops_filtered,
     latitude="纬度",
@@ -225,22 +214,6 @@ st.map(
     size=df_shops_filtered["评分"] * 100,  # 标记大小随评分变化
     color="#006688"  # 主色调
 )
-# 可选：Plotly地图（支持多颜色标记，交互更强，如需可替换上方代码）
-# df_shops_filtered["颜色"] = df_shops_filtered["KTV类型"].map({"量贩式": "blue", "商务式": "purple"})
-# fig = px.scatter_mapbox(
-#     df_shops_filtered,
-#     lat="纬度",
-#     lon="经度",
-#     hover_name="店铺名称",
-#     hover_data=["评分", "小包厢小时消费(元)"],
-#     size="评分",
-#     size_max=20,
-#     color="KTV类型",
-#     mapbox_style="carto-positron",
-#     zoom=11,
-#     height=500
-# )
-# st.plotly_chart(fig, use_container_width=True)
 
 # --------------------------
 # 4. 页脚信息
