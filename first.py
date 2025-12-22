@@ -88,10 +88,3 @@ st.line_chart(price_trend, x="月份", height=400)
 with st.expander("📋 餐厅详情"):
     st.dataframe(restaurants, use_container_width=True)
 
-# 7. 今日午餐推荐
-st.subheader("🍱 今日午餐推荐")
-st.image(
-    "https://img2.baidu.com/it/u=3443650544,3544230644&fm=253&fmt=auto",
-    caption="复记老友粉 - 南宁经典酸辣鲜香口味",
-    use_container_width=True
-)
