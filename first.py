@@ -1,64 +1,68 @@
 import streamlit as st
-import pandas as pd
 
-# 基础页面配置（仅保留必选参数，避开所有兼容坑）
-st.set_page_config(
-    page_title="南宁美食数据仪表盘",
-    layout="wide"
-)
+# 页面配置：网易云风格音乐播放器
+st.set_page_config(page_title="网易云音乐播放器", page_icon="🎶")
 
-# ---------------------- 构造标准格式数据（规避类型/列名问题） ----------------------
-# 1. 南宁美食餐厅信息（6家，经纬度列名用英文，避免API识别错误）
-restaurants = pd.DataFrame({
-    "餐厅名称": [
-        "复记老友粉(中山路店)",
-        "舒记老友粉(七星路店)",
-        "桂小厨(万象城店)",
-        "三品王(朝阳店)",
-        "粉之都(民族大道店)",
-        "南宁肥仔饭店(明秀店)"
-    ],
-    "latitude": [22.815, 22.820, 22.800, 22.820, 22.810, 22.830],  # 英文列名
-    "longitude": [108.325, 108.330, 108.350, 108.340, 108.360, 108.310],  # 英文列名
-    "评分": [4.7, 4.6, 4.8, 4.5, 4.4, 4.6],
-    "人均价格": [15, 14, 60, 18, 12, 50]
-})
+# 音乐列表
+music_list = [
+    {
+        "name": "歌曲1 - 关山酒）",
+        "url": "https://music.163.com/song/media/outer/url?id=3323746308",  # 替换为目标歌曲ID
+        "cover": "http://p2.music.126.net/EpX1U8WYebXOzo-jJ8MW5w==/109951172371108092.jpg?param=130y130"  # 可替换为网易云歌曲封面
+    },
+    {
+        "name": "歌曲2 - 如果呢",
+        "url": "https://music.163.com/song/media/outer/url?id=1842728629",  # 示例：另一首歌的ID
+        "cover": "http://p2.music.126.net/-xMsNLpquZTmMZlIztTgHg==/109951165953469081.jpg?param=130y130"
+    }
+,
+    {
+        "name": "歌曲2 - 执迷不悟",
+        "url": "https://music.163.com/song/media/outer/url?id=1477539203",  # 示例：另一首歌的ID
+        "cover": "http://p1.music.126.net/NQCtUkal5sPxK1Y25SW3-Q==/109951165303077538.jpg?param=130y130"
+    }
 
-# 2. 用餐高峰时段（Area Chart）
-peak_hours = pd.DataFrame({
-    "时段": list(range(24)),
-    "客流量": [5, 3, 2, 1, 2, 8, 25, 30, 20, 15, 12, 18, 40, 45, 35, 25, 20, 30, 40, 35, 25, 15, 10, 6]
-})
 
-# 3. 5家餐厅12个月价格走势（核心需求，确保数据格式无错）
-price_trend = pd.DataFrame({
-    "月份": ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"],
-    "复记老友粉": [15,15,16,15,15,16,15,15,16,15,15,16],
-    "舒记老友粉": [14,14,14,15,14,14,15,14,14,15,14,14],
-    "桂小厨": [60,62,61,63,62,64,63,62,64,63,62,65],
-    "三品王": [18,18,19,18,19,18,19,18,19,18,19,18],
-    "粉之都": [12,12,13,12,12,13,12,12,13,12,12,13]
-})
 
-# ---------------------- 核心界面（仅保留必选元素，无冗余参数） ----------------------
-st.title("南宁美食数据仪表盘")
 
-# 1. 店铺分布（Map - 用英文列名，指定参数，100%兼容）
-st.subheader("🍜 南宁美食店铺分布")
-st.map(restaurants, latitude="latitude", longitude="longitude", zoom=12)
+    
+]
 
-# 2. 餐厅评分（Bar Chart - 移除height，避免API异常）
-st.subheader("⭐ 餐厅评分")
-st.bar_chart(restaurants, x="餐厅名称", y="评分")
+# 初始化会话状态（保存播放进度和索引）
+if "music_state" not in st.session_state:
+    st.session_state["music_state"] = {
+        "current_idx": 0,
+        "is_playing": False
+    }
 
-# 3. 用餐高峰时段（Area Chart - 核心元素）
-st.subheader("⏰ 用餐高峰时段（24小时客流量）")
-st.area_chart(peak_hours, x="时段", y="客流量")
+# 切换歌曲函数
+def switch_song(direction):
+    current = st.session_state["music_state"]["current_idx"]
+    if direction == "prev":
+        new_idx = (current - 1) % len(music_list)
+    else:  # next
+        new_idx = (current + 1) % len(music_list)
+    st.session_state["music_state"]["current_idx"] = new_idx
 
-# 4. 12个月价格走势（Line Chart - 核心需求，5条折线）
-st.subheader("📈 5家餐厅12个月价格走势")
-st.line_chart(price_trend, x="月份")
+# 获取当前播放歌曲
+current_song = music_list[st.session_state["music_state"]["current_idx"]]
 
-# 5. 餐厅基础信息
-st.subheader("📋 餐厅基础信息")
-st.dataframe(restaurants, use_container_width=True)
+# 页面布局
+st.title("🎶 简易网易云音乐播放器")
+# 显示歌曲封面（可从网易云歌曲页右键复制封面链接）
+st.image(current_song["cover"], width=280)
+# 显示歌曲名
+st.subheader(current_song["name"])
+# 音频播放组件（直接加载网易云链接）
+st.audio(current_song["url"], format="audio/mp3", start_time=0)
+
+# 控制按钮
+col1, col2, col3 = st.columns(3, gap="small")
+with col1:
+    st.button("上一首", on_click=switch_song, args=("prev",), use_container_width=True)
+with col2:
+    play_btn_text = "暂停" if st.session_state["music_state"]["is_playing"] else "播放"
+    if st.button(play_btn_text, use_container_width=True):
+        st.session_state["music_state"]["is_playing"] = not st.session_state["music_state"]["is_playing"]
+with col3:
+    st.button("下一首", on_click=switch_song, args=("next",), use_container_width=True)
