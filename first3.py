@@ -4,7 +4,7 @@ import streamlit as st
 def get_dataframe_from_excel():
     """从Excel文件读取数据并处理"""
     # 使用原始字符串 r"" 避免反斜杠转义问题
-    excel_path = r"C:\Users\710\Downloads\supermarket_sales.xlsx"
+    excel_path = "supermarket_sales.xlsx"
     
     df = pd.read_excel(
         excel_path,
