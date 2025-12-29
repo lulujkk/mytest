@@ -1,9 +1,7 @@
 import streamlit as st
 import pandas as pd
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.linear_model import LinearRegression
+import pickle  # 替换joblib为pickle
+import os
 
 # 页面配置
 st.set_page_config(page_title="医疗费用预测", layout="wide")
@@ -34,54 +32,44 @@ else:
         smoker = st.radio("是否吸烟", ["是", "否"], index=1)
         region = st.selectbox("区域", ["东南部", "东北部", "西北部", "西南部"], index=0)
 
-    # 云端直接训练模型（无需上传pkl）
+    # 缓存模型（用pickle加载，增加详细错误捕获）
     @st.cache_resource
-    def train_model_on_cloud():
-        # 加载云端的数据集
+    def load_trained_model():
+        model_path = "medical_cost_model.pkl"
+        # 检查文件是否存在
+        if not os.path.exists(model_path):
+            st.error(f"❌ 未找到模型文件：{model_path}")
+            st.info("请确认模型文件已上传到云端 /mount/src/mytest/ 目录下！")
+            return None
+        # 检查文件大小（避免空文件）
+        file_size = os.path.getsize(model_path)
+        if file_size < 100:  # 模型文件至少几十KB
+            st.error(f"❌ 模型文件损坏：{model_path} 大小仅 {file_size} 字节")
+            st.info("请重新生成模型并上传！")
+            return None
+        # 加载模型并捕获具体错误
         try:
-            df = pd.read_csv("insurance-chinese.csv", encoding="gbk")
-        except:
-            # 备用：直接用内置示例数据（避免CSV编码问题）
-            data = {
-                "年龄": [19,18,28,33,32,31,46,37,37,60],
-                "性别": ["女性","男性","男性","男性","男性","女性","女性","女性","男性","女性"],
-                "BMI": [27.9,33.77,33.0,22.705,28.88,25.74,33.44,27.74,29.83,25.84],
-                "子女数量": [0,1,3,0,0,0,1,3,2,0],
-                "是否吸烟": ["是","否","否","否","否","否","否","否","否","否"],
-                "区域": ["西南部","东南部","东南部","西北部","西北部","东南部","东南部","西北部","东北部","西北部"],
-                "医疗费用": [16884.924,1725.5523,4449.462,21984.47061,3866.8552,3756.6216,8240.5896,7281.5056,6406.4107,28923.13692]
-            }
-            df = pd.DataFrame(data)
-        
-        X = df.drop("医疗费用", axis=1)
-        y = df["医疗费用"]
-        
-        # 预处理+训练
-        categorical_cols = ["性别", "是否吸烟", "区域"]
-        numerical_cols = ["年龄", "BMI", "子女数量"]
-        preprocessor = ColumnTransformer(
-            transformers=[
-                ("num", "passthrough", numerical_cols),
-                ("cat", OneHotEncoder(drop="first"), categorical_cols)
-            ]
-        )
-        model = Pipeline(steps=[
-            ("preprocessor", preprocessor),
-            ("regressor", LinearRegression())
-        ])
-        model.fit(X, y)
-        return model
+            with open(model_path, "rb") as f:
+                model = pickle.load(f)
+            return model
+        except Exception as e:
+            st.error(f"❌ 模型加载失败！具体错误：{str(e)}")
+            st.info("原因可能是：1. 本地与云端Python/sklearn版本不一致；2. 模型文件上传损坏")
+            return None
     
-    model = train_model_on_cloud()
+    model = load_trained_model()
 
     # 预测按钮
     if st.button("预测费用"):
-        input_data = pd.DataFrame({
-            "年龄": [age], "性别": [gender], "BMI": [bmi],
-            "子女数量": [children], "是否吸烟": [smoker], "区域": [region]
-        })
-        try:
-            cost = model.predict(input_data)[0]
-            st.success(f"✅ 预测医疗费用：{cost:.2f} 元")
-        except Exception as e:
-            st.error(f"预测失败：{str(e)}")
+        if model is None:
+            st.warning("请先解决模型加载问题！")
+        else:
+            input_data = pd.DataFrame({
+                "年龄": [age], "性别": [gender], "BMI": [bmi],
+                "子女数量": [children], "是否吸烟": [smoker], "区域": [region]
+            })
+            try:
+                cost = model.predict(input_data)[0]
+                st.success(f"✅ 预测医疗费用：{cost:.2f} 元")
+            except Exception as e:
+                st.error(f"预测失败：{str(e)}")
