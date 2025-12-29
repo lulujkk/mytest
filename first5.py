@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-import joblib
+import pickle  # 替换joblib为pickle
+import os
 
 # 页面配置
 st.set_page_config(page_title="医疗费用预测", layout="wide")
@@ -28,25 +29,35 @@ else:
         bmi = st.number_input("BMI", min_value=0.0, max_value=50.0, value=22.00, format="%.2f")
     with col2:
         children = st.number_input("子女数量", min_value=0, max_value=10, value=0)
-        smoker = st.radio("是否吸烟", ["是", "否"], index=1)  # 默认“否”
+        smoker = st.radio("是否吸烟", ["是", "否"], index=1)
         region = st.selectbox("区域", ["东南部", "东北部", "西北部", "西南部"], index=0)
 
-    # 缓存模型（避免重复加载）
+    # 缓存模型（用pickle加载，增加容错）
     @st.cache_resource
     def load_trained_model():
-        return joblib.load("medical_cost_model.joblib")
+        model_path = "medical_cost_model.pkl"  # 模型文件后缀改为pkl
+        if not os.path.exists(model_path):
+            st.error(f"❌ 未找到模型文件：{model_path}")
+            st.info("请先运行 `python train_model.py` 生成模型文件！")
+            return None
+        # 用pickle加载模型（替代joblib）
+        with open(model_path, "rb") as f:
+            model = pickle.load(f)
+        return model
+    
     model = load_trained_model()
 
     # 预测按钮
     if st.button("预测费用"):
-        # 构造输入数据（与训练时的特征列名一致）
-        input_data = pd.DataFrame({
-            "年龄": [age], "性别": [gender], "BMI": [bmi],
-            "子女数量": [children], "是否吸烟": [smoker], "区域": [region]
-        })
-        # 执行预测并显示结果
-        try:
-            cost = model.predict(input_data)[0]
-            st.success(f"✅ 预测医疗费用：{cost:.2f} 元")
-        except Exception as e:
-            st.error(f"预测失败：{str(e)}")
+        if model is None:
+            st.warning("请先解决模型文件缺失问题！")
+        else:
+            input_data = pd.DataFrame({
+                "年龄": [age], "性别": [gender], "BMI": [bmi],
+                "子女数量": [children], "是否吸烟": [smoker], "区域": [region]
+            })
+            try:
+                cost = model.predict(input_data)[0]
+                st.success(f"✅ 预测医疗费用：{cost:.2f} 元")
+            except Exception as e:
+                st.error(f"预测失败：{str(e)}")
